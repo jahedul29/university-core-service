@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "faculties" ALTER COLUMN "middleName" DROP NOT NULL,
+ALTER COLUMN "profileImg" DROP NOT NULL,
+ALTER COLUMN "contactNo" DROP NOT NULL,
+ALTER COLUMN "bloodGroup" DROP NOT NULL;
