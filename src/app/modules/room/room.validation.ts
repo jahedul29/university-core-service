@@ -2,12 +2,6 @@ import { z } from 'zod';
 
 const createValidation = z.object({
   body: z.object({
-    title: z
-      .string({
-        required_error: 'Title is required',
-      })
-      .trim()
-      .min(1, { message: 'Title is required' }),
     roomNumber: z
       .string({
         required_error: 'RoomNumber is required',
