@@ -8,6 +8,39 @@ import { SemesterRegistrationValidation } from './semesterRegistration.validatio
 const router = express.Router();
 
 router.post(
+  '/start-registration',
+  auth(ENUM_USER_ROLE.STUDENT),
+  // validateRequest(SemesterRegistrationValidation.createValidation),
+  SemesterRegistrationController.startRegistration
+);
+
+router.post(
+  '/enrol-into-course',
+  auth(ENUM_USER_ROLE.STUDENT),
+  validateRequest(SemesterRegistrationValidation.enrollAndWithdrawToCourse),
+  SemesterRegistrationController.enrollIntoCourse
+);
+
+router.post(
+  '/withdraw-from-course',
+  auth(ENUM_USER_ROLE.STUDENT),
+  validateRequest(SemesterRegistrationValidation.enrollAndWithdrawToCourse),
+  SemesterRegistrationController.withdrawFromCourse
+);
+
+router.post(
+  '/confirm-registration',
+  auth(ENUM_USER_ROLE.STUDENT),
+  SemesterRegistrationController.confirmStudentSemesterRegistration
+);
+
+router.post(
+  '/get-my-registration',
+  auth(ENUM_USER_ROLE.STUDENT),
+  SemesterRegistrationController.getMyRegistration
+);
+
+router.post(
   '/',
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),
   validateRequest(SemesterRegistrationValidation.createValidation),

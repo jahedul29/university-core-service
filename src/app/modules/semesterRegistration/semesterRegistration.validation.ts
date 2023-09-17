@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 const createValidation = z.object({
   body: z.object({
-    startData: z
+    startDate: z
       .string({
         required_error: 'Start Date is required',
       })
@@ -32,7 +32,7 @@ const createValidation = z.object({
 
 const updateValidation = z.object({
   body: z.object({
-    startData: z.string().optional(),
+    startDate: z.string().optional(),
     endDate: z.string().optional(),
     status: z
       .enum([...Object.values(SemesterRegistrationStatus)] as [
@@ -46,7 +46,19 @@ const updateValidation = z.object({
   }),
 });
 
+const enrollAndWithdrawToCourse = z.object({
+  body: z.object({
+    offeredCourseId: z.string({
+      required_error: 'offeredCourseId is required',
+    }),
+    offeredCourseSectionId: z.string({
+      required_error: 'offeredCourseSectionId is required',
+    }),
+  }),
+});
+
 export const SemesterRegistrationValidation = {
   createValidation,
   updateValidation,
+  enrollAndWithdrawToCourse,
 };

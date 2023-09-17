@@ -116,10 +116,91 @@ const deleteSemesterRegistration = catchAsync(
   }
 );
 
+const startRegistration = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as any;
+  const result = await SemesterRegistrationService.startRegistration(
+    user.userId
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Student Semester Registration successful',
+    data: result,
+  });
+});
+
+const enrollIntoCourse = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as any;
+  const data = req.body;
+
+  const result = await SemesterRegistrationService.enrollIntoCourse(
+    user.userId,
+    data
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Successfully enrolled into course',
+    data: result,
+  });
+});
+
+const withdrawFromCourse = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as any;
+  const data = req.body;
+
+  const result = await SemesterRegistrationService.withdrawFromCourse(
+    user.userId,
+    data
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Successfully withdrew from course',
+    data: result,
+  });
+});
+
+const confirmStudentSemesterRegistration = catchAsync(
+  async (req: Request, res: Response) => {
+    const user = req.user as any;
+
+    const result =
+      await SemesterRegistrationService.confirmStudentSemesterRegistration(
+        user.userId
+      );
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: 'Successfully confirmed the registration',
+      data: result,
+    });
+  }
+);
+
+const getMyRegistration = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as any;
+
+  const result = await SemesterRegistrationService.getMyRegistration(
+    user.userId
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'My registration data fetched',
+    data: result,
+  });
+});
+
 export const SemesterRegistrationController = {
   createSemesterRegistration,
   getAllSemesterRegistrations,
   getSingleSemesterRegistration,
   updateSemesterRegistration,
   deleteSemesterRegistration,
+  startRegistration,
+  enrollIntoCourse,
+  withdrawFromCourse,
+  confirmStudentSemesterRegistration,
+  getMyRegistration,
 };

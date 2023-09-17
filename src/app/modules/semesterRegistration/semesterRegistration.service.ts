@@ -2,6 +2,7 @@ import {
   Prisma,
   SemesterRegistration,
   SemesterRegistrationStatus,
+  StudentSemesterRegistration,
 } from '@prisma/client';
 import httpStatus from 'http-status';
 import ApiError from '../../../errors/ApiError';
@@ -9,6 +10,7 @@ import { paginationHelpers } from '../../../helpers/paginationHelper';
 import { IGenericResponse } from '../../../interfaces/common';
 import { IPaginationOptions } from '../../../interfaces/pagination';
 import prisma from '../../../shared/prisma';
+import { semesterStudentRegistrationCourseService } from '../semesterStudentRegistrationCourse/semesterStudentRegistrationCourse.service';
 import { semesterRegistrationSearchableFields } from './semesterRegistration.constants';
 import { ISemesterRegistrationFilterRequest } from './semesterRegistration.interface';
 
@@ -182,10 +184,200 @@ const deleteSemesterRegistration = async (
   return result;
 };
 
+const startRegistration = async (
+  studentId: string
+): Promise<{
+  semesterRegistration: SemesterRegistration | null;
+  studentSemesterRegistration: StudentSemesterRegistration | null;
+}> => {
+  const isStudentExist = await prisma.student.findFirst({
+    where: {
+      studentId,
+    },
+    include: {
+      academicDepartment: true,
+      academicFaculty: true,
+      academicSemester: true,
+      studentSemesterRegistrations: true,
+    },
+  });
+
+  if (!isStudentExist) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Student not found');
+  }
+
+  const isSemesterExist = await prisma.semesterRegistration.findFirst({
+    where: {
+      status: {
+        in: [
+          SemesterRegistrationStatus.UPCOMING,
+          SemesterRegistrationStatus.ONGOING,
+        ],
+      },
+    },
+  });
+
+  if (isSemesterExist?.status === SemesterRegistrationStatus.UPCOMING) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Registration not started yet');
+  }
+
+  let studentRegistration = await prisma.studentSemesterRegistration.findFirst({
+    where: {
+      student: {
+        studentId: isStudentExist.studentId,
+      },
+      semesterRegistration: {
+        id: isSemesterExist?.id,
+      },
+    },
+  });
+
+  if (!studentRegistration) {
+    studentRegistration = await prisma.studentSemesterRegistration.create({
+      data: {
+        student: {
+          connect: {
+            id: isStudentExist.id,
+          },
+        },
+        semesterRegistration: {
+          connect: {
+            id: isSemesterExist?.id,
+          },
+        },
+      },
+    });
+  }
+
+  return {
+    semesterRegistration: isSemesterExist,
+    studentSemesterRegistration: studentRegistration,
+  };
+};
+
+const enrollIntoCourse = async (
+  userId: string,
+  payload: { offeredCourseId: string; offeredCourseSectionId: string }
+) => {
+  return await semesterStudentRegistrationCourseService.enrollIntoCourse(
+    userId,
+    payload
+  );
+};
+
+const withdrawFromCourse = async (
+  userId: string,
+  payload: { offeredCourseId: string; offeredCourseSectionId: string }
+) => {
+  return await semesterStudentRegistrationCourseService.withdrawFromCourse(
+    userId,
+    payload
+  );
+};
+
+const confirmStudentSemesterRegistration = async (
+  userId: string
+): Promise<{
+  message: string;
+}> => {
+  const semesterRegistration = await prisma.semesterRegistration.findFirst({
+    where: {
+      status: SemesterRegistrationStatus.ONGOING,
+    },
+  });
+  if (!semesterRegistration) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No ongoing semester found');
+  }
+
+  const studentSemesterRegistration =
+    await prisma.studentSemesterRegistration.findFirst({
+      where: {
+        student: {
+          studentId: userId,
+        },
+        semesterRegistration: {
+          id: semesterRegistration.id,
+        },
+      },
+    });
+
+  if (!studentSemesterRegistration) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      'This student is not enrolled in any course'
+    );
+  }
+
+  if (studentSemesterRegistration.totalCreditsTaken === 0) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      'you are not enrolled in any course'
+    );
+  }
+
+  if (
+    semesterRegistration.maxCredit &&
+    semesterRegistration.minCredit &&
+    studentSemesterRegistration.totalCreditsTaken &&
+    (studentSemesterRegistration.totalCreditsTaken <
+      semesterRegistration.minCredit ||
+      studentSemesterRegistration.totalCreditsTaken >
+        semesterRegistration.maxCredit)
+  ) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      `You can take between ${semesterRegistration.minCredit} to ${semesterRegistration.maxCredit}`
+    );
+  }
+
+  await prisma.studentSemesterRegistration.update({
+    where: {
+      id: studentSemesterRegistration.id,
+    },
+    data: {
+      isConfirmed: true,
+    },
+  });
+
+  return {
+    message: 'Your registration is confirmed',
+  };
+};
+
+const getMyRegistration = async (userId: string): Promise<any> => {
+  const semesterRegistration = await prisma.semesterRegistration.findFirst({
+    where: {
+      status: SemesterRegistrationStatus.ONGOING,
+    },
+  });
+  if (!semesterRegistration) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No ongoing semester found');
+  }
+
+  const studentSemesterRegistration =
+    await prisma.studentSemesterRegistration.findFirst({
+      where: {
+        semesterRegistration: {
+          id: semesterRegistration.id,
+        },
+        student: {
+          studentId: userId,
+        },
+      },
+    });
+
+  return { semesterRegistration, studentSemesterRegistration };
+};
+
 export const SemesterRegistrationService = {
   createSemesterRegistration,
   getAllSemesterRegistrations,
   getSingleSemesterRegistration,
   updateSemesterRegistration,
   deleteSemesterRegistration,
+  startRegistration,
+  enrollIntoCourse,
+  withdrawFromCourse,
+  confirmStudentSemesterRegistration,
+  getMyRegistration,
 };
