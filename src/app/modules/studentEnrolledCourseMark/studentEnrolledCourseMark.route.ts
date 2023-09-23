@@ -16,8 +16,15 @@ router.get(
 router.patch(
   '/update-marks',
   auth(ENUM_USER_ROLE.FACULTY, ENUM_USER_ROLE.ADMIN),
-  validateRequest(StudentEnrolledCourseMarkValidation.update),
+  validateRequest(StudentEnrolledCourseMarkValidation.updateMarks),
   StudentEnrolledCourseMarkController.updateMarks
+);
+
+router.patch(
+  '/update-final-marks',
+  auth(ENUM_USER_ROLE.FACULTY, ENUM_USER_ROLE.ADMIN),
+  validateRequest(StudentEnrolledCourseMarkValidation.updateFinalMarks),
+  StudentEnrolledCourseMarkController.updateFinalMarks
 );
 
 export const StudentEnrolledCourseMarksRoute = router;

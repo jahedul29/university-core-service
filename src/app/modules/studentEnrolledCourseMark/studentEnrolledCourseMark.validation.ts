@@ -1,7 +1,7 @@
 import { ExamType } from '@prisma/client';
 import { z } from 'zod';
 
-const update = z.object({
+const updateMarks = z.object({
   body: z.object({
     studentId: z.string().optional(),
     academicSemesterId: z.string().optional(),
@@ -13,6 +13,15 @@ const update = z.object({
   }),
 });
 
+const updateFinalMarks = z.object({
+  body: z.object({
+    studentId: z.string().optional(),
+    academicSemesterId: z.string().optional(),
+    courseId: z.string().optional(),
+  }),
+});
+
 export const StudentEnrolledCourseMarkValidation = {
-  update,
+  updateMarks,
+  updateFinalMarks,
 };
