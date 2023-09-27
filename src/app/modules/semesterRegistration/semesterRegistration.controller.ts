@@ -204,6 +204,23 @@ const startNewSemester = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getEnrollableSemesterRegistrationCourses = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = (req as any).user.userId;
+
+    const result =
+      await SemesterRegistrationService.getEnrollableSemesterRegistrationCourses(
+        userId
+      );
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: 'Enrollable courses fetched successfully successfully',
+      data: result,
+    });
+  }
+);
+
 export const SemesterRegistrationController = {
   createSemesterRegistration,
   getAllSemesterRegistrations,
@@ -216,4 +233,5 @@ export const SemesterRegistrationController = {
   confirmStudentSemesterRegistration,
   getMyRegistration,
   startNewSemester,
+  getEnrollableSemesterRegistrationCourses,
 };

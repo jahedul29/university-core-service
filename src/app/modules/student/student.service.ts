@@ -1,10 +1,13 @@
-import { Prisma, Student } from '@prisma/client';
+import { Prisma, Student, StudentEnrolledCourseStatus } from '@prisma/client';
+import httpStatus from 'http-status';
+import ApiError from '../../../errors/ApiError';
 import { paginationHelpers } from '../../../helpers/paginationHelper';
 import { IGenericResponse } from '../../../interfaces/common';
 import { IPaginationOptions } from '../../../interfaces/pagination';
 import prisma from '../../../shared/prisma';
 import { studentSearchableFields } from './student.constants';
 import { IStudentFilterRequest } from './student.interface';
+import { StudentUtils } from './student.utils';
 
 const createStudent = async (data: Student): Promise<Student> => {
   const result = await prisma.student.create({
@@ -123,10 +126,192 @@ const deleteStudent = async (id: string): Promise<Student> => {
   return result;
 };
 
+const myCourses = async (
+  userId: string,
+  filter: {
+    academicSemesterId?: string;
+    courseId?: string;
+  }
+) => {
+  if (!filter.academicSemesterId) {
+    const currentSemester = await prisma.academicSemester.findFirst({
+      where: {
+        isCurrent: true,
+      },
+    });
+
+    if (!currentSemester) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'No semester running currently!'
+      );
+    }
+
+    filter.academicSemesterId = currentSemester?.id;
+  } else {
+    const academicSemester = await prisma.academicSemester.findFirst({
+      where: {
+        id: filter.academicSemesterId,
+      },
+    });
+
+    if (!academicSemester) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'academic semester not found!'
+      );
+    }
+  }
+
+  const enrolledCourses = await prisma.studentEnrolledCourse.findMany({
+    where: {
+      student: {
+        studentId: userId,
+      },
+      ...filter,
+    },
+    include: {
+      student: true,
+      course: true,
+      academicSemester: true,
+    },
+  });
+
+  return enrolledCourses;
+};
+
+const myCourseSchedules = async (
+  userId: string,
+  filter: {
+    academicSemesterId?: string;
+    courseId?: string;
+  }
+) => {
+  if (!filter.academicSemesterId) {
+    const currentSemester = await prisma.academicSemester.findFirst({
+      where: {
+        isCurrent: true,
+      },
+    });
+
+    if (!currentSemester) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'No semester running currently!'
+      );
+    }
+
+    filter.academicSemesterId = currentSemester?.id;
+  } else {
+    const academicSemester = await prisma.academicSemester.findFirst({
+      where: {
+        id: filter.academicSemesterId,
+      },
+    });
+
+    if (!academicSemester) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'academic semester not found!'
+      );
+    }
+  }
+
+  const studentEnrolledCourses = await myCourses(userId, filter);
+
+  const studentEnrolledCourseIds = studentEnrolledCourses.map(
+    (item: any) => item.courseId
+  );
+
+  const result = await prisma.studentSemesterRegistrationCourse.findMany({
+    where: {
+      student: {
+        studentId: userId,
+      },
+      semesterRegistration: {
+        academicSemester: {
+          id: filter.academicSemesterId,
+        },
+      },
+      offeredCourse: {
+        course: {
+          id: {
+            in: studentEnrolledCourseIds,
+          },
+        },
+      },
+    },
+    include: {
+      offeredCourse: {
+        include: {
+          course: true,
+        },
+      },
+      offeredCourseSection: {
+        include: {
+          offeredCourseClassSchedules: {
+            include: {
+              room: {
+                include: {
+                  building: true,
+                },
+              },
+              faculty: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return result;
+};
+
+const myAcademicInfo = async (userId: string): Promise<any> => {
+  const academicInfo = await prisma.studentAcademicInfo.findFirst({
+    where: {
+      student: {
+        studentId: userId,
+      },
+    },
+  });
+
+  if (!academicInfo) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Academic info not found');
+  }
+
+  const enrolledCourse = await prisma.studentEnrolledCourse.findMany({
+    where: {
+      student: {
+        studentId: userId,
+      },
+      status: StudentEnrolledCourseStatus.COMPLETED,
+    },
+    include: {
+      course: true,
+      academicSemester: true,
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+  });
+
+  const groupByAcademicSemester =
+    StudentUtils.groupByAcademicSemester(enrolledCourse);
+
+  return {
+    academicInfo,
+    courses: groupByAcademicSemester,
+  };
+};
+
 export const StudentService = {
   createStudent,
   getAllStudents,
   getSingleStudent,
   updateStudent,
   deleteStudent,
+  myCourses,
+  myCourseSchedules,
+  myAcademicInfo,
 };

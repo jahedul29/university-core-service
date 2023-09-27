@@ -46,6 +46,12 @@ router.post(
   SemesterRegistrationController.startNewSemester
 );
 
+router.get(
+  '/get-enrollable-courses',
+  auth(ENUM_USER_ROLE.STUDENT),
+  SemesterRegistrationController.getEnrollableSemesterRegistrationCourses
+);
+
 router.post(
   '/',
   auth(ENUM_USER_ROLE.ADMIN, ENUM_USER_ROLE.SUPER_ADMIN),

@@ -92,10 +92,75 @@ const deleteStudent = catchAsync(async (req: Request, res: Response) => {
   }
 });
 
+const myCourses = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const filters = pick(req.query, ['academicSemesterId', 'courseId']);
+  const result = await StudentService.myCourses(userId, filters);
+  if (result) {
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: 'Courses fetched successfully',
+      data: result,
+    });
+  } else {
+    sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: 'Courses not found',
+      data: result,
+    });
+  }
+});
+
+const myCourseSchedules = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const filters = pick(req.query, ['academicSemesterId', 'courseId']);
+  const result = await StudentService.myCourseSchedules(userId, filters);
+  if (result) {
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: 'Schedule fetched successfully',
+      data: result,
+    });
+  } else {
+    sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: 'Schedule not found',
+      data: result,
+    });
+  }
+});
+
+const myAcademicInfo = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const result = await StudentService.myAcademicInfo(userId);
+  if (result) {
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: 'Academic info fetched successfully',
+      data: result,
+    });
+  } else {
+    sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: 'Academic info not found',
+      data: result,
+    });
+  }
+});
+
 export const StudentController = {
   createStudent,
   getAllStudents,
   getSingleStudent,
   updateStudent,
   deleteStudent,
+  myCourses,
+  myCourseSchedules,
+  myAcademicInfo,
 };

@@ -1,4 +1,6 @@
 import { CourseFaculty, Faculty, Prisma } from '@prisma/client';
+import httpStatus from 'http-status';
+import ApiError from '../../../errors/ApiError';
 import { paginationHelpers } from '../../../helpers/paginationHelper';
 import { IGenericResponse } from '../../../interfaces/common';
 import { IPaginationOptions } from '../../../interfaces/pagination';
@@ -167,6 +169,100 @@ const removeCourses = async (
   return assignedCoursesData;
 };
 
+const myCourses = async (
+  userId: string,
+  filter: {
+    courseId?: string;
+    academicSemesterId?: string;
+  }
+) => {
+  if (!filter.academicSemesterId) {
+    const currentSemester = await prisma.academicSemester.findFirst({
+      where: {
+        isCurrent: true,
+      },
+    });
+
+    if (!currentSemester) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'No semester running currently!'
+      );
+    }
+
+    filter.academicSemesterId = currentSemester?.id;
+  } else {
+    const academicSemester = await prisma.academicSemester.findFirst({
+      where: {
+        id: filter.academicSemesterId,
+      },
+    });
+
+    if (!academicSemester) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'academic semester not found!'
+      );
+    }
+  }
+
+  const offeredCourseSections = await prisma.offeredCourseSection.findMany({
+    where: {
+      offeredCourseClassSchedules: {
+        some: {
+          faculty: {
+            facultyId: userId,
+          },
+        },
+      },
+      offeredCourse: {
+        semesterRegistration: {
+          academicSemester: {
+            id: filter.academicSemesterId,
+          },
+        },
+      },
+    },
+    include: {
+      offeredCourse: true,
+      semesterRegistration: true,
+    },
+  });
+
+  const courseAndSchedule = offeredCourseSections.reduce(
+    (acc: any, obj: any) => {
+      const course = obj.offeredCourse.course;
+      const classSchedules = obj.offeredCourseClassSchedules;
+
+      const existingCourse = acc.find(
+        (item: any) => item.course?.id === course?.id
+      );
+
+      if (existingCourse) {
+        existingCourse.sections.push({
+          section: obj,
+          classSchedules,
+        });
+      } else {
+        acc.push({
+          course,
+          sections: [
+            {
+              section: obj,
+              classSchedules,
+            },
+          ],
+        });
+      }
+
+      return acc;
+    },
+    []
+  );
+
+  return courseAndSchedule;
+};
+
 export const FacultyService = {
   createFaculty,
   getAllFaculties,
@@ -175,4 +271,5 @@ export const FacultyService = {
   deleteFaculty,
   assignCourses,
   removeCourses,
+  myCourses,
 };
