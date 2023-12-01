@@ -1,17 +1,59 @@
 import { AcademicSemester, Prisma } from '@prisma/client';
+import httpStatus from 'http-status';
+import ApiError from '../../../errors/ApiError';
 import { paginationHelpers } from '../../../helpers/paginationHelper';
 import { IGenericResponse } from '../../../interfaces/common';
 import { IPaginationOptions } from '../../../interfaces/pagination';
 import prisma from '../../../shared/prisma';
-import { academicSemesterSearchableFields } from './academicSemester.constants';
+import { RedisClient } from '../../../shared/redis';
+import {
+  EVENT_ACADEMIC_SEMESTER_CREATED,
+  EVENT_ACADEMIC_SEMESTER_DELETED,
+  EVENT_ACADEMIC_SEMESTER_UPDATED,
+  academicSemesterSearchableFields,
+  academicSemesterTitleCodeMapper,
+} from './academicSemester.constants';
 import { IAcademicSemesterFilterRequest } from './academicSemester.interface';
 
 const createAcademicSemester = async (
   data: AcademicSemester
 ): Promise<AcademicSemester> => {
+  // if (academicSemesterTitleCodeMapper[data.title] !== data.code) {
+  //   throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid semester code');
+  // }
+
+  const isExist = await prisma.academicSemester.findFirst({
+    where: {
+      AND: [
+        {
+          title: data.title,
+        },
+        {
+          year: data.year,
+        },
+      ],
+    },
+  });
+
+  if (isExist) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      'Academic semester already exist'
+    );
+  }
+
+  data.code = academicSemesterTitleCodeMapper[data.title];
+
   const result = await prisma.academicSemester.create({
     data,
   });
+
+  if (result) {
+    await RedisClient.publish(
+      EVENT_ACADEMIC_SEMESTER_CREATED,
+      JSON.stringify(result)
+    );
+  }
   return result;
 };
 
@@ -94,6 +136,14 @@ const updateAcademicSemester = async (
     },
     data: payload,
   });
+
+  if (result) {
+    await RedisClient.publish(
+      EVENT_ACADEMIC_SEMESTER_UPDATED,
+      JSON.stringify(result)
+    );
+  }
+
   return result;
 };
 
@@ -105,6 +155,14 @@ const deleteAcademicSemester = async (
       id,
     },
   });
+
+  if (result) {
+    await RedisClient.publish(
+      EVENT_ACADEMIC_SEMESTER_DELETED,
+      JSON.stringify(result)
+    );
+  }
+
   return result;
 };
 
